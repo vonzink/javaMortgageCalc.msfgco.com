@@ -1,0 +1,25 @@
+# Java
+*.class
+*.jar
+*.war
+*.ear
+build/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Node
+node_modules/
+dist/
+.env
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Docker
+uploads/
+
+# Env
+.env

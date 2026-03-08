@@ -1,0 +1,66 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: msfg-calculator-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-msfg_calculator}
+      MYSQL_USER: ${DB_USER:-msfg_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-msfg_password}
+    ports:
+      - "3310:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - calculator-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: msfg-calculator-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-msfg_calculator}
+      DB_USER: ${DB_USER:-msfg_user}
+      DB_PASSWORD: ${DB_PASSWORD:-msfg_password}
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-secure-random-string-at-least-64-chars-long-for-production}
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "8085:8085"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - calculator-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: msfg-calculator-frontend
+    environment:
+      VITE_API_URL: http://backend:8085
+    ports:
+      - "3010:3010"
+    depends_on:
+      - backend
+    networks:
+      - calculator-network
+
+volumes:
+  mysql_data:
+  uploads_data:
+
+networks:
+  calculator-network:
+    driver: bridge
