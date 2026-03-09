@@ -1,5 +1,6 @@
 package com.msfg.calculator.controller;
 
+import com.msfg.calculator.exception.AuthenticationException;
 import com.msfg.calculator.model.dto.*;
 import com.msfg.calculator.model.entity.User;
 import com.msfg.calculator.security.SecurityUser;
@@ -46,7 +47,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse.UserDTO>> me() {
         User user = SecurityUser.getCurrentUser();
         if (user == null) {
-            return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+            throw new AuthenticationException("Not authenticated");
         }
 
         AuthResponse.UserDTO userDTO = AuthResponse.UserDTO.builder()

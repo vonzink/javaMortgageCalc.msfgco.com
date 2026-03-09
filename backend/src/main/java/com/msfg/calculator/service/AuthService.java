@@ -1,6 +1,8 @@
 package com.msfg.calculator.service;
 
-import com.msfg.calculator.exception.ResourceNotFoundException;
+import com.msfg.calculator.exception.AuthenticationException;
+import com.msfg.calculator.exception.DuplicateResourceException;
+import com.msfg.calculator.exception.InvalidTokenException;
 import com.msfg.calculator.model.dto.AuthResponse;
 import com.msfg.calculator.model.dto.LoginRequest;
 import com.msfg.calculator.model.dto.RegisterRequest;
@@ -36,7 +38,7 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already exists");
+            throw new DuplicateResourceException("Email already registered");
         }
 
         String fullName = request.getFullName();
@@ -58,10 +60,10 @@ public class AuthService {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+                .orElseThrow(() -> new AuthenticationException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new IllegalArgumentException("Invalid email or password");
+            throw new AuthenticationException("Invalid email or password");
         }
 
         return generateAuthResponse(user);
@@ -70,15 +72,15 @@ public class AuthService {
     @Transactional
     public AuthResponse refreshToken(String refreshToken) {
         if (!jwtProvider.validateToken(refreshToken)) {
-            throw new IllegalArgumentException("Invalid or expired refresh token");
+            throw new InvalidTokenException("Invalid or expired refresh token");
         }
 
         RefreshToken storedToken = refreshTokenRepository.findByToken(refreshToken)
-                .orElseThrow(() -> new IllegalArgumentException("Refresh token not found"));
+                .orElseThrow(() -> new InvalidTokenException("Refresh token not found"));
 
         if (storedToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.delete(storedToken);
-            throw new IllegalArgumentException("Refresh token has expired");
+            throw new InvalidTokenException("Refresh token has expired");
         }
 
         User user = storedToken.getUser();

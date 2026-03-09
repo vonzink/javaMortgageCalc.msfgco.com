@@ -8,7 +8,6 @@ import HubPage from '@/pages/HubPage';
 import CalculatorPage from '@/pages/CalculatorPage';
 import WorkspacePage from '@/pages/WorkspacePage';
 import ReportPage from '@/pages/ReportPage';
-import ProcessingPage from '@/pages/ProcessingPage';
 import SettingsPage from '@/pages/SettingsPage';
 
 export default function App() {
@@ -24,8 +23,6 @@ export default function App() {
         <Route path="/calculators/income/:slug" element={<CalculatorPage />} />
         <Route path="/workspace" element={<WorkspacePage />} />
         <Route path="/report" element={<ReportPage />} />
-        <Route path="/processing" element={<Navigate to="/processing/title" replace />} />
-        <Route path="/processing/:type" element={<ProcessingPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

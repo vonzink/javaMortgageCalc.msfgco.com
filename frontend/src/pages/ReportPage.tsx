@@ -1,134 +1,164 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { getReports } from '@/utils/reportStorage';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { getReport, deleteReport } from '@/utils/reportStorage';
 import type { ReportItem } from '@/types/calculators';
-import { formatCurrency, formatPercent } from '@/utils/formatters';
-import { CALCULATORS } from '@/utils/calculatorRegistry';
-import { ArrowLeft, Printer, Loader2 } from 'lucide-react';
+import { ArrowLeft, Trash2, FileText, Clock, Copy, Check } from 'lucide-react';
+
+function formatDate(ts: number) {
+  return new Date(ts).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
 
 export default function ReportPage() {
-  const [searchParams] = useSearchParams();
-  const reportId = searchParams.get('id');
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+
+  const reportId = params.get('id') || '';
 
   const [report, setReport] = useState<ReportItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
+      setIsLoading(true);
+      setError('');
+      setReport(null);
+
       if (!reportId) {
-        setError('No report ID provided');
         setIsLoading(false);
+        setError('Missing report id.');
         return;
       }
+
       try {
-        const allReports = await getReports();
-        const found = allReports.find((r) => r.id === reportId);
-        if (!found) {
-          setError('Report not found');
+        const item = await getReport(reportId);
+        if (cancelled) return;
+        if (!item) {
+          setError('Report not found.');
         } else {
-          setReport(found);
+          setReport(item);
         }
-      } catch (err) {
-        setError('Failed to load report');
+      } catch (e) {
+        if (cancelled) return;
+        setError('Failed to load report.');
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
+
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [reportId]);
 
-  const handlePrint = () => {
-    window.print();
+  const json = useMemo(() => {
+    if (!report) return '';
+    try {
+      return JSON.stringify(report.data ?? {}, null, 2);
+    } catch {
+      return String(report.data ?? '');
+    }
+  }, [report]);
+
+  const onDelete = async () => {
+    if (!report) return;
+    if (!confirm('Delete this report?')) return;
+    await deleteReport(report.id);
+    navigate('/workspace');
+  };
+
+  const onCopy = async () => {
+    if (!json) return;
+    await navigator.clipboard.writeText(json);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        <div className="animate-spin w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full" />
       </div>
     );
   }
 
-  if (error || !report) {
+  if (!report) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-xl font-semibold text-gray-700">{error || 'Report not found'}</h2>
-        <Link to="/workspace" className="mt-4 inline-flex items-center gap-2 text-brand-600 hover:text-brand-700 font-medium">
+      <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
+        <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <h2 className="text-xl font-semibold text-gray-700">Report unavailable</h2>
+        <p className="text-gray-500 mt-2">{error || 'This report could not be loaded.'}</p>
+        <Link
+          to="/workspace"
+          className="mt-4 inline-flex items-center gap-2 btn-primary"
+        >
           <ArrowLeft className="w-4 h-4" />
           Back to Workspace
         </Link>
       </div>
     );
   }
-
-  const calcDef = CALCULATORS.find((c) => c.slug === report.calcSlug);
-  const formatDate = (ts: number) =>
-    new Date(ts).toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 print:space-y-4">
-      {/* Header - hidden in print */}
-      <div className="flex items-center justify-between print:hidden">
-        <Link to="/workspace" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Workspace
-        </Link>
-        <button onClick={handlePrint} className="btn-secondary flex items-center gap-2 text-sm">
-          <Printer className="w-4 h-4" />
-          Print
-        </button>
-      </div>
-
-      {/* Report */}
-      <div className="bg-white rounded-lg border border-gray-200 p-8 print:border-0 print:shadow-none print:p-0">
-        {/* Report header */}
-        <div className="border-b border-gray-200 pb-6 mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {report.calcName || calcDef?.name || report.calcSlug}
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Link to="/workspace" className="inline-flex items-center gap-2 hover:text-brand-600">
+              <ArrowLeft className="w-4 h-4" />
+              Workspace
+            </Link>
+            <span>/</span>
+            <span className="text-gray-900 font-medium">Report</span>
+          </div>
+          <h1 className="mt-2 text-2xl font-bold text-gray-900 truncate">
+            <span className="mr-2">{report.calcIcon}</span>
+            {report.calcName || report.calcSlug}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Generated {formatDate(report.timestamp)}
-          </p>
+          <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
+            <span className="inline-flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" />
+              {formatDate(report.timestamp)}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <FileText className="w-3.5 h-3.5" />
+              {report.calcSlug}
+            </span>
+          </div>
         </div>
 
-        {/* Data */}
-        {report.data && Object.keys(report.data).length > 0 && (
-          <div>
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">Results</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 px-3 text-gray-500 font-medium">Metric</th>
-                    <th className="text-right py-2 px-3 text-gray-500 font-medium">Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(report.data).map(([key, val]) => (
-                    <tr key={key} className="border-b border-gray-100">
-                      <td className="py-2 px-3 text-gray-700">{key}</td>
-                      <td className="py-2 px-3 text-right font-mono text-gray-900 font-medium">
-                        {typeof val === 'number'
-                          ? key.toLowerCase().includes('rate') || key.toLowerCase().includes('apr')
-                            ? formatPercent(val)
-                            : formatCurrency(val)
-                          : String(val)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <button onClick={onCopy} className="btn-secondary flex items-center gap-2">
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copied ? 'Copied' : 'Copy JSON'}
+          </button>
+          <button onClick={onDelete} className="btn-secondary flex items-center gap-2 text-red-600">
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-800">Report Data</h2>
+          <span className="text-xs text-gray-500">id: {report.id}</span>
+        </div>
+        <pre className="p-4 text-xs sm:text-sm overflow-auto whitespace-pre-wrap break-words">
+{json}
+        </pre>
       </div>
     </div>
   );
 }
+

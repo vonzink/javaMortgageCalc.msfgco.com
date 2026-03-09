@@ -4,7 +4,6 @@ import { useAuth } from '@/context/AuthContext';
 import {
   Calculator,
   FolderOpen,
-  Link2,
   Settings,
   LogOut,
   Menu,
@@ -15,7 +14,6 @@ import {
 const NAV_ITEMS = [
   { to: '/', label: 'Calculators', icon: Calculator },
   { to: '/workspace', label: 'Workspace', icon: FolderOpen },
-  { to: '/processing/title', label: 'Processing', icon: Link2 },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 

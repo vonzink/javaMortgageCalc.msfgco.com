@@ -2,6 +2,10 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import client from '@/api/client';
 import type { User, LoginCredentials, RegisterData } from '@/types';
 
+const AUTH_TOKEN_KEY = 'auth_token';
+const AUTH_REFRESH_TOKEN_KEY = 'auth_refresh_token';
+const AUTH_USER_KEY = 'auth_user';
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
@@ -19,16 +23,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Hydrate from localStorage on mount
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    const storedUser = localStorage.getItem('auth_user');
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    const storedUser = localStorage.getItem(AUTH_USER_KEY);
 
     if (token && storedUser) {
       try {
         const parsed = JSON.parse(storedUser) as User;
         setUser(parsed);
       } catch {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
+        localStorage.removeItem(AUTH_USER_KEY);
       }
     }
     setIsLoading(false);
@@ -36,28 +41,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     const response = await client.post('/auth/login', credentials);
-    const { token, user: authUser } = response.data.data;
-    localStorage.setItem('auth_token', token);
-    localStorage.setItem('auth_user', JSON.stringify(authUser));
+    const { token, refreshToken, user: authUser } = response.data.data;
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    localStorage.setItem(AUTH_REFRESH_TOKEN_KEY, refreshToken);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
     setUser(authUser);
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
-    const name = `${data.firstName} ${data.lastName}`.trim();
     const response = await client.post('/auth/register', {
       email: data.email,
       password: data.password,
-      name,
+      firstName: data.firstName,
+      lastName: data.lastName,
     });
-    const { token, user: authUser } = response.data.data;
-    localStorage.setItem('auth_token', token);
-    localStorage.setItem('auth_user', JSON.stringify(authUser));
+    const { token, refreshToken, user: authUser } = response.data.data;
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    localStorage.setItem(AUTH_REFRESH_TOKEN_KEY, refreshToken);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
     setUser(authUser);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
     setUser(null);
   }, []);
 

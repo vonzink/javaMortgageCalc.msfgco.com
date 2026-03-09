@@ -1,38 +1,44 @@
-import { openDB, type IDBPDatabase } from 'idb';
 import type { ReportItem } from '@/types/calculators';
 
-const DB_NAME = 'msfg-calculator-reports';
-const DB_VERSION = 1;
-const STORE_NAME = 'items';
+const SESSION_KEY = 'msfg-calculator-reports';
 
-async function getDB(): Promise<IDBPDatabase> {
-  return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      }
-    },
-  });
+function readAll(): ReportItem[] {
+  const raw = sessionStorage.getItem(SESSION_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed as ReportItem[];
+  } catch {
+    // Corrupt session payload; reset to avoid breaking the app.
+    sessionStorage.removeItem(SESSION_KEY);
+    return [];
+  }
+}
+
+function writeAll(items: ReportItem[]) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(items));
 }
 
 export async function saveReport(item: ReportItem): Promise<void> {
-  const db = await getDB();
-  await db.put(STORE_NAME, item);
+  const items = readAll();
+  const next = [item, ...items.filter((x) => x.id !== item.id)];
+  writeAll(next);
 }
 
 export async function getReports(): Promise<ReportItem[]> {
-  const db = await getDB();
-  const items = await db.getAll(STORE_NAME);
-  // Sort by timestamp descending (newest first)
-  return (items as ReportItem[]).sort((a, b) => b.timestamp - a.timestamp);
+  return readAll().sort((a, b) => b.timestamp - a.timestamp);
+}
+
+export async function getReport(id: string): Promise<ReportItem | undefined> {
+  return readAll().find((x) => x.id === id);
 }
 
 export async function deleteReport(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete(STORE_NAME, id);
+  const items = readAll().filter((x) => x.id !== id);
+  writeAll(items);
 }
 
 export async function clearReports(): Promise<void> {
-  const db = await getDB();
-  await db.clear(STORE_NAME);
+  sessionStorage.removeItem(SESSION_KEY);
 }

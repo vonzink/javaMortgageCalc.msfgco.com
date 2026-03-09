@@ -58,7 +58,7 @@ export default function WorkspacePage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Workspace</h1>
         <p className="text-gray-500 mt-1">
-          Your saved calculator reports. Reports are stored locally on this device.
+          Your saved calculator reports. Reports are stored for this session only (closing the tab clears them).
         </p>
       </div>
 

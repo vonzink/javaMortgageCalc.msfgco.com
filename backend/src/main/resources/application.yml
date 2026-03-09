@@ -4,10 +4,13 @@ server:
 spring:
   application:
     name: msfg-calculator
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
   datasource:
-    url: jdbc:mysql://localhost:3310/msfg_calculator?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: msfg_user
-    password: msfg_password
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3310}/${DB_NAME:msfg_calculator}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -29,7 +32,7 @@ spring:
       max-request-size: 10MB
 
 jwt:
-  secret: ${JWT_SECRET:change-me-to-a-secure-random-string-at-least-64-chars-long-for-production}
+  secret: ${JWT_SECRET}
   expiration-ms: 86400000
   refresh-expiration-ms: 604800000
 
@@ -37,9 +40,11 @@ file:
   upload-dir: ${UPLOAD_DIR:uploads}
 
 app:
-  encryption-key: ${ENCRYPTION_KEY:change-this-to-secure-key-for-production}
+  encryption-key: ${ENCRYPTION_KEY}
+  security:
+    fail-fast-on-missing-secrets: true
 
 logging:
   level:
-    com.msfg.calculator: DEBUG
+    com.msfg.calculator: INFO
     org.springframework.security: INFO
